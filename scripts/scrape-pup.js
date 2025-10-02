@@ -1,42 +1,50 @@
-import puppeteer from "puppeteer";
+const puppeteer = require("puppeteer");
 
-const getMerchants = async () => {
-  // Start a Puppeteer session with:
-  // - a visible browser (`headless: false` - easier to debug because you'll see the browser in action)
-  // - no default viewport (`defaultViewport: null` - website page will in full width and height)
-  const browser = await puppeteer.launch({
-    headless: false,
-    defaultViewport: null,
-  });
 
-  // Open a new page
-  const page = await browser.newPage();
 
-  // On this new page:
-  // - wait until the dom content is loaded (HTML is ready)
-  await page.goto("https://www.skymilesshopping.com/b____.htm", {
-    waitUntil: "domcontentloaded",
-  });
+const scrapeMerchants = async () => {
+  try {
+    const browser = await puppeteer.launch({
+      headless: false,
+      defaultViewport: null,
+      executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    });
 
-  // Get page data
-  const merchants = await page.evaluate(() => {
-    // Fetch the first element with class "mn_merchantGroup"
-    const store = document.querySelector(".mn_merchantList");
+    const page = await browser.newPage();
+    await page.goto("https://www.skymilesshopping.com/b____.htm", {
+      waitUntil: "networkidle2",
+    });
 
-    // Fetch the sub-elements from the previously fetched quote element
-    // Get the displayed text and return it (`.innerText`)
-    const listWrapper = store.querySelector(".mn_merchantGroup").innerText;
-    const chunked = store.querySelector(".data-merchant-group").innerText;
+    // wait for the main groups wrapper
+    await page.waitForSelector(".mn_groupsWrap");
 
-    return { text, author };
-  });
+    const data = await page.evaluate(() => {
+      const groups = document.querySelectorAll(".mn_groupsWrap");
 
-  // Display the quotes
-  console.log(merchants);
+      return Array.from(groups).map(group => {
+        const merchants = [];
 
-  // Close the browser
-  await browser.close();
+        const lis = group.querySelectorAll(".mn_groupLists ul li[data-categories]");
+        lis.forEach(li => {
+          const name = li.querySelector("span.mn_merchName")?.innerText.trim() || "";
+          // if rewards are in a span, for example span.mn_merchReward, update this:
+          const reward = li.querySelector("span.mn_rebate")?.innerText.trim() || "";
+
+          merchants.push({ name, reward });
+        });
+
+        return merchants;
+      });
+    });
+
+    console.dir(data, { depth: null });
+
+    await browser.close();
+  } catch (error) {
+    console.error("Error scraping merchants:", error);
+  }
 };
 
-// Start the scraping
-getMerchants();
+scrapeMerchants();
+
+// mn_groupsWrap -> mn_groupLists -> ul -> li data-categories="2,3,15,70," -> a href="/me____.htm?gmid=6673" -> span class="mn_merchName" 
