@@ -1,37 +1,46 @@
-/**
- * Initialized Server
- * Potentially Attach Websocket Server
- * Connects to router to mount routes
- * 
- */
+const express = require('express');
+const path = require('path');
+const Anthropic = require('@anthropic-ai/sdk');
+require('dotenv').config();
 
+const app = express();
+const port = 3000;
 
-const express = require('express')
-const app = express()
-const port = 3000
-const path = require('path')
-
-// Middleware to parse JSON request bodies
-app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.send('Hello there')
-})
-
-//create chat endpoint
-app.get('/chat', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public/index.html'))
-})
-
-
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`)
+// Initialize Claude client
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
 });
 
+// Middleware
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// serve static files
-app.use(express.static(path.join(__dirname, 'public')))
+// Serve static files (frontend)
+app.use(express.static(path.join(__dirname, 'public')));
 
-// parse request bodies (req.body)
-app.use(express.urlencoded({ extended: true }))
+// Serve index.html
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
+// Chat endpoint
+app.post('/chat', async (req, res) => {
+  try {
+    const userMessage = req.body.message;
+
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: userMessage }]
+    });
+
+    res.json({ reply: msg.content[0].text });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Something went wrong with Claude." });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server listening on http://localhost:${port}`);
+});
