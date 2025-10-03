@@ -48,3 +48,7 @@ const scrapeMerchants = async () => {
 scrapeMerchants();
 
 // mn_groupsWrap -> mn_groupLists -> ul -> li data-categories="2,3,15,70," -> a href="/me____.htm?gmid=6673" -> span class="mn_merchName" 
+
+
+
+
